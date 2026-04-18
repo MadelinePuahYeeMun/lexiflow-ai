@@ -1,30 +1,43 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from datetime import datetime
+from typing import List, Optional
 
 app = FastAPI(title="LexiFlow AI Backend")
 
 # Temporary in-memory audit log
 audit_logs = []
 
+
 class AnalyzeInput(BaseModel):
     input: str
+    source_type: Optional[str] = "manual_input"
+    trigger_mode: Optional[str] = "manual_scan"
+
 
 @app.get("/")
 def home():
-    return {"message": "LexiFlow AI Backend Running - VERSION 3"}
+    return {"message": "LexiFlow AI Backend Running - VERSION 4"}
+
 
 @app.post("/analyze")
 def analyze(data: AnalyzeInput):
     text = data.input.lower()
 
     # Keyword sets
-    personal_data_keywords = ["name", "names", "phone", "phone number", "email", "emails", "ic", "address", "customer list"]
-    external_sharing_keywords = ["share", "send", "partner", "third party", "external", "marketing"]
-    consent_keywords = ["consent", "permission", "approved by user", "user consent"]
+    personal_data_keywords = [
+        "name", "names", "phone", "phone number", "email", "emails",
+        "ic", "address", "customer list"
+    ]
+    external_sharing_keywords = [
+        "share", "send", "partner", "third party", "external", "marketing"
+    ]
+    consent_keywords = [
+        "consent", "permission", "approved by user", "user consent"
+    ]
 
     # Detection
-    detected_entities = []
+    detected_entities: List[str] = []
 
     if any(word in text for word in ["name", "names"]):
         detected_entities.append("names")
@@ -43,7 +56,7 @@ def analyze(data: AnalyzeInput):
     has_external_sharing = any(word in text for word in external_sharing_keywords)
     has_consent = any(word in text for word in consent_keywords)
 
-    reasoning_steps = []
+    reasoning_steps: List[str] = []
 
     if has_personal_data:
         reasoning_steps.append("Detected personal data in the input.")
@@ -67,15 +80,17 @@ def analyze(data: AnalyzeInput):
         risk_score = 87
         reason = "Personal data is being shared externally without consent."
         compliance_basis = "PDPA - external sharing of personal data requires valid consent."
-        suggestion = "Obtain explicit consent or anonymize the data before sharing."
-        reasoning_steps.append("High-risk PDPA violation identified. Action should be blocked.")
+        suggestion = "Remove personal data, anonymize the content, or obtain explicit consent before sending."
+        recommended_action = "show_warning"
+        reasoning_steps.append("High-risk PDPA violation identified. Warning should be triggered.")
     elif has_personal_data and has_external_sharing and has_consent:
         status = "escalate"
         risk_level = "medium"
         risk_score = 60
         reason = "Personal data is being shared externally, and consent is mentioned."
         compliance_basis = "PDPA - external sharing with consent may still require compliance review."
-        suggestion = "Escalate to compliance officer for validation before proceeding."
+        suggestion = "Escalate to compliance officer or review before proceeding."
+        recommended_action = "show_warning"
         reasoning_steps.append("Medium-risk case identified. Human review is recommended.")
     elif has_personal_data:
         status = "approve"
@@ -84,6 +99,7 @@ def analyze(data: AnalyzeInput):
         reason = "Personal data is present, but no risky external sharing is detected."
         compliance_basis = "PDPA - personal data handling appears internal and low risk."
         suggestion = "Proceed with caution and follow internal data handling policy."
+        recommended_action = "allow"
         reasoning_steps.append("Low-risk internal handling detected. Action may proceed.")
     else:
         status = "approve"
@@ -92,7 +108,10 @@ def analyze(data: AnalyzeInput):
         reason = "No personal data or compliance risk detected."
         compliance_basis = "No PDPA-sensitive activity detected."
         suggestion = "No further action required."
+        recommended_action = "allow"
         reasoning_steps.append("No significant compliance risk found.")
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     result = {
         "status": status,
@@ -103,20 +122,35 @@ def analyze(data: AnalyzeInput):
         "detected_entities": detected_entities,
         "compliance_basis": compliance_basis,
         "reasoning_steps": reasoning_steps,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "recommended_action": recommended_action,
+        "source_type": data.source_type,
+        "trigger_mode": data.trigger_mode,
+        "timestamp": timestamp
     }
 
     # Save to audit log
     audit_logs.append({
         "input": data.input,
+        "source_type": data.source_type,
+        "trigger_mode": data.trigger_mode,
         "status": status,
         "risk_level": risk_level,
         "risk_score": risk_score,
-        "timestamp": result["timestamp"]
+        "recommended_action": recommended_action,
+        "timestamp": timestamp
     })
 
     return result
 
+
 @app.get("/audit-log")
 def get_audit_log():
     return {"logs": audit_logs}
+
+
+@app.get("/risk-score")
+def get_risk_score_preview():
+    return {
+        "message": "Risk score is currently generated through /analyze response.",
+        "note": "A dedicated /risk-score endpoint can be expanded in future versions."
+    }
