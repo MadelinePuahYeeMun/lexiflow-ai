@@ -1,9 +1,18 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional
 
 app = FastAPI(title="LexiFlow AI Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # development stage
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Temporary in-memory audit log
 audit_logs = []
