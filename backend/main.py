@@ -22,11 +22,12 @@ class AnalyzeInput(BaseModel):
     input: str
     source_type: Optional[str] = "manual_input"
     trigger_mode: Optional[str] = "manual_scan"
+    session_id: Optional[str] = None
 
 
 @app.get("/")
 def home():
-    return {"message": "LexiFlow AI Backend Running - VERSION 4"}
+    return {"message": "LexiFlow AI Backend Running - VERSION 5"}
 
 
 @app.post("/analyze")
@@ -134,20 +135,47 @@ def analyze(data: AnalyzeInput):
         "recommended_action": recommended_action,
         "source_type": data.source_type,
         "trigger_mode": data.trigger_mode,
+        "session_id": data.session_id,
         "timestamp": timestamp
     }
 
-    # Save to audit log
-    audit_logs.append({
-        "input": data.input,
-        "source_type": data.source_type,
-        "trigger_mode": data.trigger_mode,
-        "status": status,
-        "risk_level": risk_level,
-        "risk_score": risk_score,
-        "recommended_action": recommended_action,
-        "timestamp": timestamp
-    })
+    # Save or update audit log
+    # If session_id exists, keep only one latest record per email/page session
+    if data.session_id:
+        existing_index = next(
+            (i for i, log in enumerate(audit_logs) if log.get("session_id") == data.session_id),
+            None
+        )
+
+        log_entry = {
+            "input": data.input,
+            "source_type": data.source_type,
+            "trigger_mode": data.trigger_mode,
+            "session_id": data.session_id,
+            "status": status,
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "recommended_action": recommended_action,
+            "timestamp": timestamp
+        }
+
+        if existing_index is not None:
+            audit_logs[existing_index] = log_entry
+        else:
+            audit_logs.append(log_entry)
+    else:
+        # fallback behavior if no session_id is provided
+        audit_logs.append({
+            "input": data.input,
+            "source_type": data.source_type,
+            "trigger_mode": data.trigger_mode,
+            "session_id": None,
+            "status": status,
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "recommended_action": recommended_action,
+            "timestamp": timestamp
+        })
 
     return result
 
