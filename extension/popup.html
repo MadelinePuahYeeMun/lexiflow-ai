@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexiFlow AI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">L</div>
+      <div>
+        <h1>LexiFlow AI</h1>
+        <p>Browser Compliance Assistant</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>Detected Page</label>
+      <div id="pageInfo" class="muted">Checking current tab...</div>
+    </div>
+
+    <div class="section">
+      <label>Extracted Content</label>
+      <textarea id="contentPreview" placeholder="Page content will appear here..."></textarea>
+    </div>
+
+    <div class="section row">
+      <div>
+        <label>Source Type</label>
+        <select id="sourceType">
+          <option value="email_page">email_page</option>
+          <option value="web_page">web_page</option>
+          <option value="uploaded_pdf">uploaded_pdf</option>
+          <option value="uploaded_image">uploaded_image</option>
+          <option value="manual_input">manual_input</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Trigger Mode</label>
+        <select id="triggerMode">
+          <option value="send_attempt">send_attempt</option>
+          <option value="manual_scan">manual_scan</option>
+          <option value="auto_scan">auto_scan</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="scanBtn">Analyze Current Page</button>
+
+    <div id="statusBox" class="hidden result">
+      <div class="badges">
+        <span id="statusBadge" class="badge">-</span>
+        <span id="riskBadge" class="badge secondary">-</span>
+      </div>
+      <p><strong>Risk Score:</strong> <span id="riskScore">-</span></p>
+      <p><strong>Reason:</strong> <span id="reasonText">-</span></p>
+      <p><strong>Suggestion:</strong> <span id="suggestionText">-</span></p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
