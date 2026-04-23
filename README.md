@@ -2,7 +2,7 @@
 
 LexiFlow AI is an AI-powered compliance monitoring system designed to help users detect and prevent potential personal data privacy violations in real time.
 
-The system integrates with email platforms (e.g., Gmail) and uses an AI reasoning engine to analyze user-generated content before sending.
+The system integrates with email/drive platforms (e.g., Gmail, Drive) and uses an AI reasoning engine to analyze user-generated content before sending.
 
 ---
 
@@ -12,14 +12,14 @@ The system integrates with email platforms (e.g., Gmail) and uses an AI reasonin
 * ⚠️ Risk detection (low / medium / high)
 * 🧾 Explainable AI reasoning
 * 📊 Audit log tracking
-* 🔌 Gmail extension integration
+* 🔌 Gmail/Drive extension integration
 * 🤖 AI-powered compliance engine (ILMU-GLM-5.1)
 
 ---
 
 ## 🏗️ System Architecture
 
-Frontend (Gmail Extension / Dashboard)
+Frontend (Gmail/Drive Extension / Dashboard)
 ⬇
 Backend (FastAPI)
 ⬇
@@ -30,7 +30,7 @@ ILMU GLM API (AI Reasoning Engine)
 ## ⚙️ Tech Stack
 
 * Backend: FastAPI (Python)
-* Frontend: Web Dashboard + Gmail Extension
+* Frontend: Web Dashboard + Gmail/Drive Extension
 * AI Model: ILMU-GLM-5.1
 * Deployment: Render
 * Version Control: GitHub
@@ -119,7 +119,7 @@ http://127.0.0.1:8000/docs
 Backend is deployed on Render:
 
 ```
-https://your-render-url.onrender.com
+https://lexiflow-ai-backend.onrender.com
 ```
 
 ---
@@ -137,9 +137,9 @@ LexiFlow AI focuses on:
 
 ## 👥 Team
 
+* Product / PM: Cadee
+* Frontend: Evelyn
 * Backend / AI: Madeline
-* Frontend: [Teammate Name]
-* Product / PM: [Teammate Name]
 
 ---
 
