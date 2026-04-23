@@ -8,32 +8,32 @@ The system integrates with email platforms (e.g., Gmail) and uses an AI reasonin
 
 ## 🧠 Key Features
 
-- 🔍 Real-time content analysis
-- ⚠️ Risk detection (low / medium / high)
-- 🧾 Explainable AI reasoning
-- 📊 Audit log tracking
-- 🔌 Gmail extension integration
-- 🤖 AI-powered compliance engine (ILMU-GLM-5.1)
+* 🔍 Real-time content analysis
+* ⚠️ Risk detection (low / medium / high)
+* 🧾 Explainable AI reasoning
+* 📊 Audit log tracking
+* 🔌 Gmail extension integration
+* 🤖 AI-powered compliance engine (ILMU-GLM-5.1)
 
 ---
 
 ## 🏗️ System Architecture
 
-Frontend (Gmail Extension / Dashboard)  
-⬇  
-Backend (FastAPI)  
-⬇  
-ILMU GLM API (AI Reasoning Engine)  
+Frontend (Gmail Extension / Dashboard)
+⬇
+Backend (FastAPI)
+⬇
+ILMU GLM API (AI Reasoning Engine)
 
 ---
 
 ## ⚙️ Tech Stack
 
-- Backend: FastAPI (Python)
-- Frontend: Web Dashboard + Gmail Extension
-- AI Model: ILMU-GLM-5.1
-- Deployment: Render
-- Version Control: GitHub
+* Backend: FastAPI (Python)
+* Frontend: Web Dashboard + Gmail Extension
+* AI Model: ILMU-GLM-5.1
+* Deployment: Render
+* Version Control: GitHub
 
 ---
 
@@ -53,6 +53,7 @@ ILMU GLM API (AI Reasoning Engine)
 ### POST /analyze
 
 Request:
+
 ```json
 {
   "input": "string",
@@ -60,8 +61,11 @@ Request:
   "trigger_mode": "send_attempt",
   "session_id": "unique_id"
 }
+```
+
 Response:
 
+```json
 {
   "status": "approve | blocked | escalate",
   "risk_level": "low | medium | high",
@@ -74,42 +78,74 @@ Response:
   "recommended_action": "allow | show_warning",
   "timestamp": "YYYY-MM-DD HH:MM:SS"
 }
-GET /audit-log
+```
+
+---
+
+### GET /audit-log
 
 Returns audit history of analyzed content.
 
-🔐 Environment Variables
+---
+
+## 🔐 Environment Variables
 
 Create these in your environment (or Render):
 
+```
 ILMU_API_KEY=your_api_key
 USE_GLM=true
-🧪 Running Locally
+```
+
+---
+
+## 🧪 Running Locally
+
+```bash
 pip install -r requirements.txt
 uvicorn main:app --reload
+```
 
 Then open:
 
+```
 http://127.0.0.1:8000/docs
-☁️ Deployment
+```
+
+---
+
+## ☁️ Deployment
 
 Backend is deployed on Render:
 
+```
 https://your-render-url.onrender.com
-🛡️ Compliance Focus
+```
+
+---
+
+## 🛡️ Compliance Focus
 
 LexiFlow AI focuses on:
 
-Personal Data Protection (PDPA)
-External data sharing risks
-Consent validation
-Sensitive data detection
-👥 Team
-Backend / AI: Madeline
-Frontend: [Your teammate]
-Product / PM: [Your teammate]
-💡 Future Improvements
-File scanning (PDF, images, spreadsheets)
-OCR integration
-Advanced policy customization
-Multi-language support
+* Personal Data Protection (PDPA)
+* External data sharing risks
+* Consent validation
+* Sensitive data detection
+
+---
+
+## 👥 Team
+
+* Backend / AI: Madeline
+* Frontend: [Teammate Name]
+* Product / PM: [Teammate Name]
+
+---
+
+## 💡 Future Improvements
+
+* File scanning (PDF, images, spreadsheets)
+* OCR integration
+* Advanced policy customization
+* Multi-language support
