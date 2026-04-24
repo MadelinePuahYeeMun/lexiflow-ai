@@ -42,9 +42,14 @@ class AnalyzeInput(BaseModel):
     session_id: Optional[str] = None
 
 
+class SuggestInput(BaseModel):
+    input: str
+    source_type: Optional[str] = "email_page"
+
+
 @app.get("/")
 def home():
-    return {"message": "LexiFlow AI Backend Running - VERSION 6"}
+    return {"message": "LexiFlow AI Backend Running - VERSION 7"}
 
 
 @app.get("/health")
@@ -98,7 +103,7 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
 
     personal_data_keywords = [
         "name", "names", "phone", "phone number", "email", "emails",
-        "ic", "address", "customer list"
+        "ic", "address", "customer list", "bank acc", "bank account", "account number"
     ]
     external_sharing_keywords = [
         "share", "send", "partner", "third party", "external", "marketing"
@@ -121,6 +126,8 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
         detected_entities.append("addresses")
     if "customer list" in text:
         detected_entities.append("customer list")
+    if any(word in text for word in ["bank acc", "bank account", "account number"]):
+        detected_entities.append("bank account details")
 
     has_personal_data = any(word in text for word in personal_data_keywords)
     has_external_sharing = any(word in text for word in external_sharing_keywords)
@@ -151,6 +158,7 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
         compliance_basis = "PDPA - external sharing of personal data requires valid consent."
         suggestion = "Remove personal data, anonymize the content, or obtain explicit consent before sending."
         recommended_action = "show_warning"
+        safe_email_suggestion = "Please use a secure portal or confirm consent before sharing any personal data."
         reasoning_steps.append("High-risk PDPA violation identified. Warning should be triggered.")
     elif has_personal_data and has_external_sharing and has_consent:
         status = "escalate"
@@ -160,6 +168,7 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
         compliance_basis = "PDPA - external sharing with consent may still require compliance review."
         suggestion = "Escalate to compliance officer or review before proceeding."
         recommended_action = "show_warning"
+        safe_email_suggestion = "Please confirm consent and limit the shared data to only what is strictly necessary."
         reasoning_steps.append("Medium-risk case identified. Human review is recommended.")
     elif has_personal_data:
         status = "approve"
@@ -169,6 +178,7 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
         compliance_basis = "PDPA - personal data handling appears internal and low risk."
         suggestion = "Proceed with caution and follow internal data handling policy."
         recommended_action = "allow"
+        safe_email_suggestion = "Keep the message internal and avoid including unnecessary personal details."
         reasoning_steps.append("Low-risk internal handling detected. Action may proceed.")
     else:
         status = "approve"
@@ -178,6 +188,7 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
         compliance_basis = "No PDPA-sensitive activity detected."
         suggestion = "No further action required."
         recommended_action = "allow"
+        safe_email_suggestion = "Your current email content appears safe. Keep it concise and professional."
         reasoning_steps.append("No significant compliance risk found.")
 
     return {
@@ -190,22 +201,18 @@ def rule_based_analyze(data: AnalyzeInput) -> dict:
         "compliance_basis": compliance_basis,
         "reasoning_steps": reasoning_steps,
         "recommended_action": recommended_action,
+        "safe_email_suggestion": safe_email_suggestion,
     }
 
 
 def extract_json_object(text: str) -> dict:
-    """
-    Try to extract the first JSON object from model output.
-    """
     text = text.strip()
 
-    # Try direct JSON parse first
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # Fallback: extract {...}
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match:
         try:
@@ -237,6 +244,7 @@ Required JSON fields:
 - compliance_basis: short string
 - reasoning_steps: array of short strings
 - recommended_action: one of ["allow", "show_warning"]
+- safe_email_suggestion: short string giving a safer way to communicate the message
 
 Guidelines:
 - If risky external sharing of personal data occurs without consent, return blocked/high/show_warning.
@@ -265,7 +273,6 @@ Text:
     content = response.choices[0].message.content
     parsed = extract_json_object(content)
 
-    # Normalize and validate minimum fields
     result = {
         "status": parsed.get("status", "escalate"),
         "risk_level": parsed.get("risk_level", "medium"),
@@ -276,9 +283,12 @@ Text:
         "compliance_basis": parsed.get("compliance_basis", "PDPA-based compliance analysis."),
         "reasoning_steps": parsed.get("reasoning_steps", ["Model-generated reasoning completed."]),
         "recommended_action": parsed.get("recommended_action", "show_warning"),
+        "safe_email_suggestion": parsed.get(
+            "safe_email_suggestion",
+            "Please rewrite the email to remove sensitive details and use safer wording."
+        ),
     }
 
-    # Safety normalization
     if result["status"] not in ["approve", "blocked", "escalate"]:
         result["status"] = "escalate"
     if result["risk_level"] not in ["low", "medium", "high"]:
@@ -289,11 +299,54 @@ Text:
     return result
 
 
+def glm_generate_safe_suggestion(input_text: str, source_type: str = "email_page") -> str:
+    if client is None:
+        raise RuntimeError("ILMU client not configured.")
+
+    system_prompt = """
+You are LexiFlow AI.
+Rewrite the user's risky content into a safer email-style version.
+
+Rules:
+- Keep it concise and professional
+- Avoid exposing personal or sensitive data
+- Suggest secure alternatives if needed
+- Return plain text only
+"""
+
+    user_prompt = f"""
+Source type: {source_type}
+
+Original content:
+{input_text}
+"""
+
+    response = client.chat.completions.create(
+        model=ILMU_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.2,
+    )
+
+    return response.choices[0].message.content.strip()
+
+
+def rule_based_safe_suggestion(input_text: str) -> str:
+    lower_text = input_text.lower()
+
+    if "bank" in lower_text or "account" in lower_text:
+        return "Please use the secure portal for financial details instead of including bank account information in email."
+    if "phone" in lower_text or "email" in lower_text or "name" in lower_text:
+        return "Please avoid sharing personal contact details directly. Consider confirming consent or using a secure internal channel."
+    return "Please keep the email concise and avoid including unnecessary personal or sensitive information."
+
+
 @app.post("/analyze")
 def analyze(data: AnalyzeInput):
     timestamp = build_timestamp()
 
-    # Try GLM first if enabled, otherwise fallback to rule-based
     try:
         if USE_GLM:
             analysis = glm_analyze(data)
@@ -313,6 +366,7 @@ def analyze(data: AnalyzeInput):
         "compliance_basis": analysis["compliance_basis"],
         "reasoning_steps": analysis["reasoning_steps"],
         "recommended_action": analysis["recommended_action"],
+        "safe_email_suggestion": analysis["safe_email_suggestion"],
         "source_type": data.source_type,
         "trigger_mode": data.trigger_mode,
         "session_id": data.session_id,
@@ -331,9 +385,61 @@ def analyze(data: AnalyzeInput):
     return result
 
 
+@app.post("/suggest")
+def suggest_safe_email(data: SuggestInput):
+    try:
+        if USE_GLM:
+            safe_text = glm_generate_safe_suggestion(data.input, data.source_type)
+        else:
+            safe_text = rule_based_safe_suggestion(data.input)
+    except Exception:
+        safe_text = rule_based_safe_suggestion(data.input)
+
+    return {
+        "original_text": data.input,
+        "source_type": data.source_type,
+        "safe_version": safe_text,
+        "timestamp": build_timestamp()
+    }
+
+
 @app.get("/audit-log")
 def get_audit_log():
     return {"logs": audit_logs}
+
+
+@app.get("/report")
+def generate_report():
+    total_scans = len(audit_logs)
+    high_risk = sum(1 for log in audit_logs if log["risk_level"] == "high")
+    medium_risk = sum(1 for log in audit_logs if log["risk_level"] == "medium")
+    low_risk = sum(1 for log in audit_logs if log["risk_level"] == "low")
+
+    blocked_count = sum(1 for log in audit_logs if log["status"] == "blocked")
+    escalate_count = sum(1 for log in audit_logs if log["status"] == "escalate")
+    approve_count = sum(1 for log in audit_logs if log["status"] == "approve")
+
+    source_breakdown = {}
+    for log in audit_logs:
+        source = log.get("source_type", "unknown")
+        source_breakdown[source] = source_breakdown.get(source, 0) + 1
+
+    return {
+        "report_generated_at": build_timestamp(),
+        "total_scans": total_scans,
+        "risk_summary": {
+            "high": high_risk,
+            "medium": medium_risk,
+            "low": low_risk
+        },
+        "decision_summary": {
+            "blocked": blocked_count,
+            "escalate": escalate_count,
+            "approve": approve_count
+        },
+        "source_breakdown": source_breakdown,
+        "logs": audit_logs
+    }
 
 
 @app.get("/risk-score")
