@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import List, Optional
 
 from fastapi import FastAPI
@@ -49,7 +49,7 @@ class SuggestInput(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "LexiFlow AI Backend Running - VERSION 7"}
+    return {"message": "LexiFlow AI Backend Running - VERSION 8"}
 
 
 @app.get("/health")
@@ -64,6 +64,39 @@ def health():
 def build_timestamp() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def parse_log_date(timestamp: str) -> date:
+    return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").date()
+
+
+def filter_logs_by_period(period: str = "all", start_date: Optional[str] = None, end_date: Optional[str] = None):
+    today = date.today()
+
+    if period == "today":
+        start = today
+        end = today
+
+    elif period == "this_week":
+        start = today - timedelta(days=today.weekday())
+        end = today
+
+    elif period == "this_month":
+        start = today.replace(day=1)
+        end = today
+
+    elif period == "custom" and start_date and end_date:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    else:
+        return audit_logs
+
+    filtered_logs = []
+    for log in audit_logs:
+        log_date = parse_log_date(log["timestamp"])
+        if start <= log_date <= end:
+            filtered_logs.append(log)
+
+    return filtered_logs
 
 def save_or_update_audit_log(
     data: AnalyzeInput,
@@ -409,23 +442,44 @@ def get_audit_log():
 
 
 @app.get("/report")
-def generate_report():
-    total_scans = len(audit_logs)
-    high_risk = sum(1 for log in audit_logs if log["risk_level"] == "high")
-    medium_risk = sum(1 for log in audit_logs if log["risk_level"] == "medium")
-    low_risk = sum(1 for log in audit_logs if log["risk_level"] == "low")
+def generate_report(
+    period: str = "all",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    # Custom range has priority if both dates are provided
+    if start_date and end_date:
+        effective_period = None
+        filter_type = "custom_range"
+        filtered_logs = filter_logs_by_period("custom", start_date, end_date)
 
-    blocked_count = sum(1 for log in audit_logs if log["status"] == "blocked")
-    escalate_count = sum(1 for log in audit_logs if log["status"] == "escalate")
-    approve_count = sum(1 for log in audit_logs if log["status"] == "approve")
+    else:
+        effective_period = period
+        filter_type = "preset"
+        filtered_logs = filter_logs_by_period(period, None, None)
+
+    total_scans = len(filtered_logs)
+    high_risk = sum(1 for log in filtered_logs if log["risk_level"] == "high")
+    medium_risk = sum(1 for log in filtered_logs if log["risk_level"] == "medium")
+    low_risk = sum(1 for log in filtered_logs if log["risk_level"] == "low")
+
+    blocked_count = sum(1 for log in filtered_logs if log["status"] == "blocked")
+    escalate_count = sum(1 for log in filtered_logs if log["status"] == "escalate")
+    approve_count = sum(1 for log in filtered_logs if log["status"] == "approve")
 
     source_breakdown = {}
-    for log in audit_logs:
+    for log in filtered_logs:
         source = log.get("source_type", "unknown")
         source_breakdown[source] = source_breakdown.get(source, 0) + 1
 
     return {
         "report_generated_at": build_timestamp(),
+        "filter": {
+            "filter_type": filter_type,
+            "period": effective_period,
+            "start_date": start_date,
+            "end_date": end_date
+        },
         "total_scans": total_scans,
         "risk_summary": {
             "high": high_risk,
@@ -438,9 +492,8 @@ def generate_report():
             "approve": approve_count
         },
         "source_breakdown": source_breakdown,
-        "logs": audit_logs
+        "logs": filtered_logs
     }
-
 
 @app.get("/risk-score")
 def get_risk_score_preview():
