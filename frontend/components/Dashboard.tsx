@@ -82,6 +82,191 @@ type AssistantMessage = {
   text: string;
 };
 
+const mockLogs: LogItem[] = [
+  {
+    id: "MOCK-1001",
+    date: "2026-04-25",
+    time: "09:12:34",
+    identity: "Workspace User",
+    email: "user@lexiflow.ai",
+    platform: "Gmail",
+    action: "send_attempt",
+    status: "BLOCKED",
+    riskScore: 92,
+    riskLevel: "CRITICAL",
+    reviewState: "Pending",
+    forensicTrace: [
+      "Source type: email_page",
+      "Detected IC number and phone number in outgoing Gmail draft",
+      "External recipient detected",
+      "Recommended action: block send and rewrite message",
+    ],
+    rawDetection:
+      "Customer IC: 990101-10-1234 and phone number: 012-3456789. Please send to external vendor.",
+    automatedPolicy:
+      "Remove or mask IC and phone number before sending. Use an approved secure channel for personal data sharing.",
+  },
+  {
+    id: "MOCK-1002",
+    date: "2026-04-25",
+    time: "09:48:11",
+    identity: "Finance Team",
+    email: "finance@lexiflow.ai",
+    platform: "Drive",
+    action: "file_upload",
+    status: "ESCALATED",
+    riskScore: 88,
+    riskLevel: "HIGH",
+    reviewState: "Flagged",
+    forensicTrace: [
+      "Source type: uploaded_pdf",
+      "Detected bank account details in uploaded document",
+      "Document appears to be shared outside the workspace",
+      "Recommended action: escalate for compliance review",
+    ],
+    rawDetection:
+      "Uploaded PDF contains customer bank account number, billing address, and payment reference.",
+    automatedPolicy:
+      "Escalate to compliance officer before external sharing. Restrict file access until review is completed.",
+  },
+  {
+    id: "MOCK-1003",
+    date: "2026-04-25",
+    time: "10:05:22",
+    identity: "HR Operations",
+    email: "hr@lexiflow.ai",
+    platform: "Slack",
+    action: "message_scan",
+    status: "FLAGGED",
+    riskScore: 64,
+    riskLevel: "MEDIUM",
+    reviewState: "Pending",
+    forensicTrace: [
+      "Source type: web_page",
+      "Detected employee email address and internal staff ID",
+      "Sharing context unclear",
+      "Recommended action: verify purpose before posting",
+    ],
+    rawDetection:
+      "Please check employee ID EMP-2048 and contact sarah.lim@company.com for payroll issue.",
+    automatedPolicy:
+      "Confirm business purpose and avoid sharing staff identifiers in public or cross-team channels.",
+  },
+  {
+    id: "MOCK-1004",
+    date: "2026-04-25",
+    time: "10:33:09",
+    identity: "Support Agent",
+    email: "support@lexiflow.ai",
+    platform: "Gmail",
+    action: "auto_scan",
+    status: "APPROVED",
+    riskScore: 18,
+    riskLevel: "LOW",
+    reviewState: "Reviewed",
+    forensicTrace: [
+      "Source type: email_page",
+      "No sensitive personal data detected",
+      "Purpose appears valid",
+      "Recommended action: allow send",
+    ],
+    rawDetection:
+      "Hi, your support request has been received. Our team will respond within 24 hours.",
+    automatedPolicy: "Approved. No compliance issue detected.",
+  },
+  {
+    id: "MOCK-1005",
+    date: "2026-04-25",
+    time: "11:14:56",
+    identity: "Sales Team",
+    email: "sales@lexiflow.ai",
+    platform: "API",
+    action: "external_share",
+    status: "BLOCKED",
+    riskScore: 81,
+    riskLevel: "HIGH",
+    reviewState: "Pending",
+    forensicTrace: [
+      "Source type: manual_input",
+      "Detected customer contact list in outbound payload",
+      "Bulk personal data exposure risk detected",
+      "Recommended action: block API request",
+    ],
+    rawDetection:
+      "Exporting customer names, phone numbers, emails, and purchase history to third-party marketing API.",
+    automatedPolicy:
+      "Block export until consent, purpose limitation, and data minimization requirements are confirmed.",
+  },
+  {
+    id: "MOCK-1006",
+    date: "2026-04-25",
+    time: "12:02:17",
+    identity: "Project Coordinator",
+    email: "project@lexiflow.ai",
+    platform: "Drive",
+    action: "image_upload",
+    status: "FLAGGED",
+    riskScore: 58,
+    riskLevel: "MEDIUM",
+    reviewState: "Pending",
+    forensicTrace: [
+      "Source type: uploaded_image",
+      "Possible screenshot containing visible email addresses detected",
+      "OCR confidence requires human review",
+      "Recommended action: review image before sharing",
+    ],
+    rawDetection:
+      "Uploaded screenshot may contain participant names, Gmail addresses, and internal meeting notes.",
+    automatedPolicy:
+      "Review and blur visible personal identifiers before sharing the image externally.",
+  },
+  {
+    id: "MOCK-1007",
+    date: "2026-04-25",
+    time: "13:25:43",
+    identity: "Admin User",
+    email: "admin@lexiflow.ai",
+    platform: "Gmail",
+    action: "send_attempt",
+    status: "ESCALATED",
+    riskScore: 96,
+    riskLevel: "CRITICAL",
+    reviewState: "Flagged",
+    forensicTrace: [
+      "Source type: email_page",
+      "Detected password-like string in outgoing message",
+      "Recipient appears external",
+      "Recommended action: escalate and rotate exposed credential",
+    ],
+    rawDetection:
+      "Temporary login password: Admin@2026! Please use this to access the shared account.",
+    automatedPolicy:
+      "Do not send passwords through email. Use a secure password manager and rotate the exposed credential immediately.",
+  },
+  {
+    id: "MOCK-1008",
+    date: "2026-04-25",
+    time: "14:10:08",
+    identity: "Legal Reviewer",
+    email: "legal@lexiflow.ai",
+    platform: "Slack",
+    action: "message_scan",
+    status: "APPROVED",
+    riskScore: 22,
+    riskLevel: "LOW",
+    reviewState: "Reviewed",
+    forensicTrace: [
+      "Source type: web_page",
+      "No direct personal identifiers detected",
+      "Internal-only discussion context detected",
+      "Recommended action: allow message",
+    ],
+    rawDetection:
+      "Please review the compliance checklist before tomorrow's internal meeting.",
+    automatedPolicy: "Approved. Content is low risk and suitable for internal sharing.",
+  },
+];
+
 export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | LogStatus>("ALL");
@@ -156,9 +341,14 @@ export default function Dashboard() {
 
           setLogsData(mappedLogs);
           setSelected(mappedLogs.length > 0 ? mappedLogs[0] : null);
+        } else {
+          setLogsData(mockLogs);
+          setSelected(mockLogs[0]);
         }
       } catch (error) {
         console.error(error);
+        setLogsData(mockLogs);
+        setSelected(mockLogs[0]);
       }
     };
 
