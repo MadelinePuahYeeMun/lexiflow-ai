@@ -1,6 +1,5 @@
 "use client";
 
-import { logs } from "../lib/mock-data";
 import type { LogItem, LogStatus, RiskLevel, ReviewState } from "../types";
 
 import { useEffect, useMemo, useState } from "react";
@@ -77,14 +76,18 @@ function reviewDot(state: ReviewState) {
 }
 
 type ReportRange = "today" | "this_week" | "this_month" | "all" | "custom";
-type AssistantMessage = { role: "ai" | "user"; text: string };
+
+type AssistantMessage = {
+  role: "ai" | "user";
+  text: string;
+};
 
 export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | LogStatus>("ALL");
   const [riskFilter, setRiskFilter] = useState<"ALL" | RiskLevel>("ALL");
-  const [logsData, setLogsData] = useState<LogItem[]>(logs);
-  const [selected, setSelected] = useState<LogItem>(logs[0]);
+  const [logsData, setLogsData] = useState<LogItem[]>([]);
+  const [selected, setSelected] = useState<LogItem | null>(null);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -100,12 +103,10 @@ export default function Dashboard() {
 
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
-  const [assistantMessages, setAssistantMessages] = useState<
-    AssistantMessage[]
-  >([
+  const [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>([
     {
       role: "ai",
-      text: "Hi, I’m LexiFlow AI Assistant. Ask me for a risk report, blocked incident explanation, or a safer rewrite.",
+      text: "Hi, I’m LexiFlow Compliance Copilot. Ask me about risky content, blocked incidents, reports, or safer rewrites.",
     },
   ]);
 
@@ -113,52 +114,48 @@ export default function Dashboard() {
     const fetchAuditLogs = async () => {
       try {
         const res = await fetch(
-          "https://lexiflow-ai-backend.onrender.com/audit-log",
+          "https://lexiflow-ai-backend.onrender.com/audit-log"
         );
         const data = await res.json();
 
         if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-          const mappedLogs: LogItem[] = data.logs.map(
-            (log: any, index: number) => ({
-              id: log.session_id || `API-${index + 1}`,
-              date: log.timestamp?.split(" ")[0] || "2026-04-18",
-              time: log.timestamp?.split(" ")[1] || "00:00:00",
-              identity: "Workspace User",
-              email: "protected-session@lexiflow.ai",
-              platform:
-                log.source_type === "email_page"
-                  ? "Gmail"
-                  : log.source_type === "uploaded_pdf" ||
-                      log.source_type === "uploaded_image"
-                    ? "Drive"
-                    : log.source_type === "web_page"
-                      ? "API"
-                      : "API",
-              action: log.trigger_mode || "auto_scan",
-              status: (log.status || "FLAGGED").toUpperCase() as LogStatus,
-              riskScore: log.risk_score || 0,
-              riskLevel:
-                log.risk_level?.toUpperCase() === "CRITICAL"
-                  ? "CRITICAL"
-                  : log.risk_level?.toUpperCase() === "HIGH"
-                    ? "HIGH"
-                    : log.risk_level?.toUpperCase() === "MEDIUM"
-                      ? "MEDIUM"
-                      : "LOW",
-              reviewState: "Pending",
-              forensicTrace: [
-                `Source type: ${log.source_type || "unknown"}`,
-                `Trigger mode: ${log.trigger_mode || "unknown"}`,
-                `Recommended action: ${log.recommended_action || "N/A"}`,
-              ],
-              rawDetection: log.input || "No captured content",
-              automatedPolicy:
-                log.recommended_action || "Review incident manually.",
-            }),
-          );
+          const mappedLogs: LogItem[] = data.logs.map((log: any, index: number) => ({
+            id: log.session_id || `API-${index + 1}`,
+            date: log.timestamp?.split(" ")[0] || "2026-04-18",
+            time: log.timestamp?.split(" ")[1] || "00:00:00",
+            identity: "Workspace User",
+            email: "protected-session@lexiflow.ai",
+            platform:
+              log.source_type === "email_page"
+                ? "Gmail"
+                : log.source_type === "uploaded_pdf" || log.source_type === "uploaded_image"
+                ? "Drive"
+                : log.source_type === "web_page"
+                ? "API"
+                : "API",
+            action: log.trigger_mode || "auto_scan",
+            status: (log.status || "FLAGGED").toUpperCase() as LogStatus,
+            riskScore: log.risk_score || 0,
+            riskLevel:
+              log.risk_level?.toUpperCase() === "CRITICAL"
+                ? "CRITICAL"
+                : log.risk_level?.toUpperCase() === "HIGH"
+                ? "HIGH"
+                : log.risk_level?.toUpperCase() === "MEDIUM"
+                ? "MEDIUM"
+                : "LOW",
+            reviewState: "Pending",
+            forensicTrace: [
+              `Source type: ${log.source_type || "unknown"}`,
+              `Trigger mode: ${log.trigger_mode || "unknown"}`,
+              `Recommended action: ${log.recommended_action || "N/A"}`,
+            ],
+            rawDetection: log.input || "No captured content",
+            automatedPolicy: log.recommended_action || "Review incident manually.",
+          }));
 
           setLogsData(mappedLogs);
-          setSelected(mappedLogs[0]);
+          setSelected(mappedLogs.length > 0 ? mappedLogs[0] : null);
         }
       } catch (error) {
         console.error(error);
@@ -193,7 +190,7 @@ export default function Dashboard() {
     (l) =>
       l.status === "BLOCKED" ||
       l.status === "FLAGGED" ||
-      l.status === "ESCALATED",
+      l.status === "ESCALATED"
   ).length;
 
   const protectedSessions = logsData.length;
@@ -234,9 +231,7 @@ export default function Dashboard() {
     ];
 
     const csv = csvRows
-      .map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
-      )
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -272,80 +267,105 @@ export default function Dashboard() {
 
     let current: any = reportResult;
     for (const key of path) {
-      if (current?.[key] === undefined || current?.[key] === null)
-        return fallback;
+      if (current?.[key] === undefined || current?.[key] === null) return fallback;
       current = current[key];
     }
 
     return String(current);
   }
 
+
   async function sendAssistantMessage(customText?: string) {
     const message = customText || assistantInput;
     if (!message.trim()) return;
 
-    setAssistantMessages((prev) => [...prev, { role: "user", text: message }]);
+    setAssistantMessages((prev) => [
+      ...prev,
+      { role: "user", text: message },
+    ]);
+
     setAssistantInput("");
     setAssistantLoading(true);
 
-    let reply =
-      "I can help summarize reports, explain blocked incidents, or rewrite risky content safely.";
+    let reply = "";
 
     try {
       const lower = message.toLowerCase();
 
       if (
+        lower.includes("report") ||
+        lower.includes("month") ||
+        lower.includes("summary") ||
+        lower.includes("trend")
+      ) {
+        const res = await fetch(
+          "https://lexiflow-ai-backend.onrender.com/report?period=this_month"
+        );
+        const data = await res.json();
+
+        reply = `This month compliance summary:\n\nTotal scans: ${
+          data.total_scans || 0
+        }\nHigh risk incidents: ${
+          data.risk_summary?.high || 0
+        }\nMedium risk incidents: ${
+          data.risk_summary?.medium || 0
+        }\nLow risk incidents: ${
+          data.risk_summary?.low || 0
+        }\nBlocked actions: ${
+          data.decision_summary?.blocked || 0
+        }\nEscalated actions: ${
+          data.decision_summary?.escalate || 0
+        }\nApproved actions: ${
+          data.decision_summary?.approve || 0
+        }\nMain source: ${
+          Object.keys(data.source_breakdown || {})[0] || "N/A"
+        }\n\nRecommendation: Review high-risk sources, reduce external sharing of personal data, and provide awareness training for repeated incidents.`;
+      } else if (
         lower.includes("rewrite") ||
         lower.includes("safe") ||
-        lower.includes("suggest")
+        lower.includes("suggest") ||
+        lower.includes("safer")
       ) {
-        const contentToRewrite =
-          selected?.rawDetection &&
-          selected.rawDetection !== "No captured content"
-            ? selected.rawDetection
-            : message;
-
-        const res = await fetch(
-          "https://lexiflow-ai-backend.onrender.com/suggest",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ input: contentToRewrite }),
+        const res = await fetch("https://lexiflow-ai-backend.onrender.com/suggest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            input: message,
+          }),
+        });
 
         const data = await res.json();
 
         reply =
           data.safe_email_suggestion ||
           data.suggestion ||
-          data.rewritten_text ||
-          data.safe_version ||
-          "Suggested safer version: remove personal data, avoid external sharing, and use an approved secure channel.";
+          "Suggested safer version: remove personal data, mask identifiers, and use an approved secure sharing channel.";
       } else if (
-        lower.includes("report") ||
-        lower.includes("summary") ||
-        lower.includes("month")
+        lower.includes("main issue") ||
+        lower.includes("issue") ||
+        lower.includes("document")
       ) {
-        const res = await fetch(
-          "https://lexiflow-ai-backend.onrender.com/report?period=this_month",
-        );
-        const data = await res.json();
-
-        reply = `This month report: ${data.total_scans || 0} scans, ${data.risk_summary?.high || 0} high-risk events, and ${data.decision_summary?.blocked || 0} blocked attempts. Main source: ${Object.keys(data.source_breakdown || {})[0] || "N/A"}.`;
+        reply =
+          "Main issue identified:\n\nSensitive information may be present in the content, such as names, phone numbers, IC numbers, email addresses, or confidential business data.\n\nWhy it matters:\nThis may create PDPA compliance risk if consent, purpose, or secure handling is not clear.\n\nRecommended action:\nRemove unnecessary personal data, mask sensitive fields, or use an approved secure channel.";
       } else if (lower.includes("blocked") || lower.includes("why")) {
-        reply = selected
-          ? `Selected incident ${selected.id} was marked ${selected.status}. Risk level: ${selected.riskLevel}. Recommended action: ${selected.automatedPolicy}`
-          : "Blocked incidents usually contain sensitive data or external sharing intent.";
+        reply =
+          "This action may be blocked because the content contains sensitive data combined with risky sharing behavior.\n\nCommon causes:\n• Personal identifiers\n• External recipient\n• Missing consent\n• Unclear purpose of data usage\n\nRecommended action:\nEdit the message, remove sensitive fields, or escalate for review.";
+      } else {
+        reply =
+          "I can help with:\n\n• Explaining the main compliance issue\n• Rewriting risky email content safely\n• Summarizing monthly reports\n• Explaining why something was blocked\n• Recommending next actions";
       }
     } catch (error) {
-      console.error("Assistant request failed:", error);
       reply =
-        "I could not reach the assistant service. Please try again, or remove sensitive data and use an approved secure channel.";
+        "I could not reach the backend service. For safety, remove sensitive data and use approved secure sharing channels.";
     }
 
     setTimeout(() => {
-      setAssistantMessages((prev) => [...prev, { role: "ai", text: reply }]);
+      setAssistantMessages((prev) => [
+        ...prev,
+        { role: "ai", text: reply },
+      ]);
       setAssistantLoading(false);
     }, 500);
   }
@@ -448,9 +468,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-medium">Timezone</span>
-                  <span className="text-base text-slate-500">
-                    (UTC+08:00) Kuala Lumpur
-                  </span>
+                  <span className="text-base text-slate-500">(UTC+08:00) Kuala Lumpur</span>
                 </div>
               </div>
             </div>
@@ -485,14 +503,10 @@ export default function Dashboard() {
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-5 text-2xl font-bold">
-                Compliance Preferences
-              </h2>
+              <h2 className="mb-5 text-2xl font-bold">Compliance Preferences</h2>
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                  <span className="text-lg font-medium">
-                    Auto-block risky send
-                  </span>
+                  <span className="text-lg font-medium">Auto-block risky send</span>
                   <div className="relative h-8 w-16 rounded-full bg-blue-600">
                     <div className="absolute left-9 top-1 h-6 w-6 rounded-full bg-white" />
                   </div>
@@ -508,12 +522,8 @@ export default function Dashboard() {
               <h2 className="mb-5 text-2xl font-bold">Security</h2>
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                  <span className="text-lg font-medium">
-                    Browser extension auth
-                  </span>
-                  <span className="text-lg font-bold text-green-600">
-                    ACTIVE
-                  </span>
+                  <span className="text-lg font-medium">Browser extension auth</span>
+                  <span className="text-lg font-bold text-green-600">ACTIVE</span>
                 </div>
                 <button className="w-full rounded-2xl border border-slate-200 py-3 text-lg font-semibold hover:bg-slate-50">
                   Manage Extension
@@ -535,9 +545,7 @@ export default function Dashboard() {
                 <h1 className="text-3xl font-black tracking-tight">
                   LexiFlow Workspace Admin
                 </h1>
-                <p className="mt-2 text-xl text-slate-500">
-                  Compliance Officer
-                </p>
+                <p className="mt-2 text-xl text-slate-500">Compliance Officer</p>
               </div>
             </div>
 
@@ -552,17 +560,13 @@ export default function Dashboard() {
                 <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
                   Department
                 </p>
-                <p className="mt-2 text-xl font-semibold">
-                  Cybersecurity & Audit
-                </p>
+                <p className="mt-2 text-xl font-semibold">Cybersecurity & Audit</p>
               </div>
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-slate-500">
                   System Permissions
                 </p>
-                <p className="mt-2 text-xl font-semibold text-green-600">
-                  Full Write Access
-                </p>
+                <p className="mt-2 text-xl font-semibold text-green-600">Full Write Access</p>
               </div>
             </div>
           </div>
@@ -681,16 +685,12 @@ export default function Dashboard() {
                       >
                         <td className="px-5 py-4">
                           <div className="font-semibold">{log.date}</div>
-                          <div className="text-sm text-slate-500">
-                            {log.time}
-                          </div>
+                          <div className="text-sm text-slate-500">{log.time}</div>
                         </td>
 
                         <td className="px-5 py-4">
                           <div className="font-semibold">{log.identity}</div>
-                          <div className="text-sm text-slate-500">
-                            {log.email}
-                          </div>
+                          <div className="text-sm text-slate-500">{log.email}</div>
                         </td>
 
                         <td className="px-5 py-4">
@@ -705,7 +705,7 @@ export default function Dashboard() {
                         <td className="px-5 py-4">
                           <span
                             className={`rounded-xl px-3 py-2 text-xs font-bold ${statusBadge(
-                              log.status,
+                              log.status
                             )}`}
                           >
                             {log.status}
@@ -715,7 +715,7 @@ export default function Dashboard() {
                         <td className="px-5 py-4">
                           <span
                             className={`rounded-lg border px-3 py-1 text-xs font-bold ${riskBadge(
-                              log.riskLevel,
+                              log.riskLevel
                             )}`}
                           >
                             {log.riskLevel}
@@ -726,7 +726,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-3">
                             <span
                               className={`h-3 w-3 rounded-full ${reviewDot(
-                                log.reviewState,
+                                log.reviewState
                               )}`}
                             />
                             {log.reviewState}
@@ -740,9 +740,7 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 gap-6 p-6 xl:grid-cols-2">
                 <div className="rounded-[28px] border border-slate-200 bg-white p-5">
-                  <h3 className="mb-4 text-xl font-black">
-                    Protected Traffic Map
-                  </h3>
+                  <h3 className="mb-4 text-xl font-black">Protected Traffic Map</h3>
 
                   <div className="grid grid-cols-2 gap-4 text-center">
                     {["Gmail", "Slack", "Google Drive", "API"].map((item) => (
@@ -758,7 +756,7 @@ export default function Dashboard() {
 
                 <div className="rounded-[28px] border border-slate-200 bg-white p-5">
                   <h3 className="mb-4 text-xl font-black uppercase tracking-wide">
-                    AI Assistant
+                    Compliance Copilot
                   </h3>
 
                   <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -768,7 +766,7 @@ export default function Dashboard() {
                       </div>
 
                       <div>
-                        <p className="font-bold">LexiFlow AI Assistant</p>
+                        <p className="font-bold">LexiFlow Compliance Copilot</p>
                         <p className="text-sm text-slate-500">
                           Live compliance guidance
                         </p>
@@ -785,13 +783,12 @@ export default function Dashboard() {
                       </div>
 
                       <div className="max-w-[85%] rounded-2xl bg-white px-4 py-3 text-sm shadow-sm">
-                        I can flag passwords, IDs, phone numbers, and risky data
-                        sharing.
+                        I can flag passwords, IDs, phone numbers, and risky data sharing.
                       </div>
                     </div>
 
                     <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                      Ask LexiFlow about trends, incidents, and policy alerts.
+                      Ask LexiFlow about issues, blocked actions, safer rewrites, and reports.
                     </div>
 
                     <div className="mt-4 flex gap-3">
@@ -806,7 +803,7 @@ export default function Dashboard() {
                         onClick={() => setShowAssistantModal(true)}
                         className="flex-1 rounded-2xl bg-blue-600 py-3 text-sm font-black text-white"
                       >
-                        Open Assistant
+                        Open Copilot
                       </button>
                     </div>
                   </div>
@@ -830,9 +827,7 @@ export default function Dashboard() {
                       Source Session
                     </p>
                     <p className="text-2xl font-bold">{selected?.identity}</p>
-                    <p className="mt-2 text-sm text-slate-500">
-                      {selected?.email}
-                    </p>
+                    <p className="mt-2 text-sm text-slate-500">{selected?.email}</p>
                   </div>
 
                   <div>
@@ -842,7 +837,7 @@ export default function Dashboard() {
 
                     <span
                       className={`rounded-xl px-4 py-2 text-sm font-black ${statusBadge(
-                        selected?.status || "FLAGGED",
+                        selected?.status || "FLAGGED"
                       )}`}
                     >
                       {selected?.status}
@@ -858,7 +853,7 @@ export default function Dashboard() {
 
                 <div className="rounded-3xl bg-slate-50 p-5">
                   <div className="space-y-3 border-l-4 border-blue-600 pl-4">
-                    {selected?.forensicTrace.map((step, i) => (
+                    {(selected?.forensicTrace || []).map((step, i) => (
                       <div key={i} className="flex gap-3 text-base">
                         <span className="font-black text-slate-400">
                           {String(i + 1).padStart(2, "0")}
@@ -920,9 +915,7 @@ export default function Dashboard() {
                 </label>
                 <select
                   value={reportRange}
-                  onChange={(e) =>
-                    setReportRange(e.target.value as ReportRange)
-                  }
+                  onChange={(e) => setReportRange(e.target.value as ReportRange)}
                   className="h-12 w-full rounded-2xl border border-slate-200 px-4 font-semibold outline-none"
                 >
                   <option value="today">Today</option>
@@ -961,21 +954,9 @@ export default function Dashboard() {
             {reportResult && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                  <ReportCard
-                    title="Total Scans"
-                    value={getNestedReportValue(["total_scans"])}
-                  />
-                  <ReportCard
-                    title="Blocked"
-                    value={getNestedReportValue([
-                      "decision_summary",
-                      "blocked",
-                    ])}
-                  />
-                  <ReportCard
-                    title="High Risk"
-                    value={getNestedReportValue(["risk_summary", "high"])}
-                  />
+                  <ReportCard title="Total Scans" value={getNestedReportValue(["total_scans"])} />
+                  <ReportCard title="Blocked" value={getNestedReportValue(["decision_summary", "blocked"])} />
+                  <ReportCard title="High Risk" value={getNestedReportValue(["risk_summary", "high"])} />
                   <ReportCard title="Period" value={getReportLabel()} />
                 </div>
 
@@ -1013,18 +994,10 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="space-y-3 text-sm text-slate-700">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                1. User types risky content in Gmail, Drive, or Teams Web.
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                2. LexiFlow scans content in real time.
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                3. Backend returns risk level, decision, and safe guidance.
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                4. Dashboard report updates automatically.
-              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">1. User types risky content in Gmail, Drive, or Teams Web.</div>
+              <div className="rounded-2xl bg-slate-50 p-4">2. LexiFlow scans content in real time.</div>
+              <div className="rounded-2xl bg-slate-50 p-4">3. Backend returns risk level, decision, and safe guidance.</div>
+              <div className="rounded-2xl bg-slate-50 p-4">4. Dashboard report updates automatically.</div>
             </div>
           </div>
         </div>
@@ -1035,11 +1008,12 @@ export default function Dashboard() {
           <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
               <div>
-                <h2 className="text-2xl font-black">LexiFlow AI Assistant</h2>
+                <h2 className="text-2xl font-black">LexiFlow Compliance Copilot</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Ask about reports, incidents, and safer rewrites.
+                  Ask about incidents, reports, safe rewrites, and compliance actions.
                 </p>
               </div>
+
               <button
                 onClick={() => setShowAssistantModal(false)}
                 className="rounded-full bg-slate-100 p-3 text-slate-500"
@@ -1050,28 +1024,31 @@ export default function Dashboard() {
 
             <div className="flex flex-wrap gap-2 border-b border-slate-200 px-6 py-4">
               <button
-                onClick={() =>
-                  sendAssistantMessage("Generate this month risk report")
-                }
+                onClick={() => sendAssistantMessage("What is the main issue in this document?")}
                 className="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-600"
               >
-                This Month Report
+                Main Issue
               </button>
+
               <button
-                onClick={() =>
-                  sendAssistantMessage("Explain blocked incidents")
-                }
+                onClick={() => sendAssistantMessage("Why was this blocked?")}
                 className="rounded-full bg-red-50 px-4 py-2 text-sm font-bold text-red-500"
               >
-                Explain Blocked
+                Why Blocked?
               </button>
+
               <button
-                onClick={() =>
-                  sendAssistantMessage("Rewrite this risky email safely")
-                }
+                onClick={() => sendAssistantMessage("Rewrite this risky email safely")}
                 className="rounded-full bg-green-50 px-4 py-2 text-sm font-bold text-green-600"
               >
                 Safe Rewrite
+              </button>
+
+              <button
+                onClick={() => sendAssistantMessage("Generate this month compliance report")}
+                className="rounded-full bg-purple-50 px-4 py-2 text-sm font-bold text-purple-600"
+              >
+                Monthly Report
               </button>
             </div>
 
@@ -1079,7 +1056,7 @@ export default function Dashboard() {
               {assistantMessages.map((msg, index) => (
                 <div
                   key={index}
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm shadow-sm ${
                     msg.role === "user"
                       ? "ml-auto bg-blue-600 text-white"
                       : "bg-white text-slate-700"
@@ -1090,7 +1067,7 @@ export default function Dashboard() {
               ))}
 
               {assistantLoading && (
-                <div className="max-w-[80%] rounded-2xl bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                <div className="max-w-[85%] rounded-2xl bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
                   LexiFlow is thinking...
                 </div>
               )}
@@ -1103,14 +1080,13 @@ export default function Dashboard() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") sendAssistantMessage();
                 }}
-                placeholder="Ask LexiFlow or paste risky email content..."
+                placeholder="Ask LexiFlow..."
                 className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 outline-none"
               />
 
               <button
                 onClick={() => sendAssistantMessage()}
-                disabled={assistantLoading}
-                className="rounded-2xl bg-blue-600 px-6 font-black text-white disabled:opacity-60"
+                className="rounded-2xl bg-blue-600 px-6 font-black text-white"
               >
                 Send
               </button>

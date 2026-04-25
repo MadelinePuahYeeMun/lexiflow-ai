@@ -1,3 +1,4 @@
+export type Platform = "Gmail" | "Drive" | "Slack" |"API";
 export type LogStatus = "BLOCKED" | "FLAGGED" | "ESCALATED" | "APPROVED";
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type ReviewState = "Pending" | "Flagged" | "Reviewed";
@@ -8,7 +9,7 @@ export type LogItem = {
   time: string;
   identity: string;
   email: string;
-  platform: "Gmail" | "Slack" | "Drive" | "API";
+  platform: Platform;
   action: string;
   status: LogStatus;
   riskScore: number;
