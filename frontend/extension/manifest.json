@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "LexiFlow AI",
+  "version": "1.0.0",
+  "description": "Real-time compliance scanner for Gmail and Google Drive.",
+  "permissions": ["storage"],
+  "host_permissions": [
+  "https://mail.google.com/*",
+  "https://drive.google.com/*",
+  "https://teams.microsoft.com/*",
+  "https://lexiflow-ai-backend.onrender.com/*"
+],
+"content_scripts": [
+  {
+    "matches": [
+      "https://mail.google.com/*",
+      "https://drive.google.com/*",
+      "https://teams.microsoft.com/*",
+      "https://teams.microsoft.com/*"
+    ],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }
+]
+}
