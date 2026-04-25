@@ -1,6 +1,6 @@
 "use client";
 
-import type { LogItem, LogStatus, RiskLevel, ReviewState } from "../types";
+import type { LogItem, LogStatus, RiskLevel, ReviewState } from "../types/index";
 
 import { useEffect, useMemo, useState } from "react";
 import {
