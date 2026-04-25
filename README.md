@@ -236,6 +236,77 @@ LexiFlow AI focuses on:
 * Sensitive data detection
 
 ---
+## 🧩 Chrome Extension Setup (Gmail / Google Drive Integration)
+
+LexiFlow AI includes a browser extension that enables real-time monitoring and analysis of user-generated content in Gmail and Google Drive.
+
+### 🔧 How to Install the Extension (Development Mode)
+
+1. Open Google Chrome and go to:
+
+```
+chrome://extensions/
+```
+
+2. Enable **Developer Mode** (toggle at the top right corner)
+
+3. Click **"Load unpacked"**
+
+4. Select the following folder from the project:
+
+```
+frontend/extension
+```
+
+5. The **LexiFlow AI extension** should now appear in your extensions list
+
+---
+
+### ▶️ How to Use the Extension
+
+1. Open:
+
+   * Gmail → https://mail.google.com
+   * Google Drive → https://drive.google.com
+
+2. Click the **LexiFlow AI extension icon** at the top right of Chrome
+
+3. The LexiFlow side panel will be injected into the page
+
+4. Start typing or interacting with content:
+
+   * The system will automatically detect changes
+   * It will send content to the backend for analysis
+
+5. You will see:
+
+   * ⚠️ Risk level (low / medium / high)
+   * 🧠 AI reasoning explanation
+   * ✨ Safe writing suggestion (if applicable)
+
+---
+
+### ⚠️ Notes
+
+* Make sure the backend server is running (local or deployed on Render)
+* The extension requires access to page content (Gmail / Drive)
+* This extension is currently in **development mode** and not published on the Chrome Web Store
+
+---
+
+### 🔗 Backend Connection
+
+The extension communicates with the backend via:
+
+```
+POST /analyze
+GET /audit-log
+GET /report
+```
+
+Ensure the correct backend URL is configured (e.g., local or deployed endpoint)
+
+---
 
 ## 👥 Team
 
