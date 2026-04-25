@@ -339,8 +339,14 @@ export default function Dashboard() {
             automatedPolicy: log.recommended_action || "Review incident manually.",
           }));
 
-          setLogsData(mappedLogs);
-          setSelected(mappedLogs.length > 0 ? mappedLogs[0] : null);
+          // Keep backend data if available, then fill the table with mock data until there are 8 rows.
+          // This keeps the dashboard demo-ready while still allowing real extension logs to appear.
+          const demoLogs = [...mappedLogs, ...mockLogs]
+            .filter((log, index, arr) => arr.findIndex((item) => item.id === log.id) === index)
+            .slice(0, 8);
+
+          setLogsData(demoLogs);
+          setSelected(demoLogs.length > 0 ? demoLogs[0] : null);
         } else {
           setLogsData(mockLogs);
           setSelected(mockLogs[0]);
